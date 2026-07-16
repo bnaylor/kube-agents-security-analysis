@@ -30,7 +30,13 @@ def test_deny_without_proof_is_blocked():
 
 def test_deny_with_proof_allowed():
     c = transition(_c(), "denied", "2026-07-17", proof="grep shows key IS handled")
-    assert c.status == "denied" and c.proof
+    assert c.status == "denied"
+    assert c.proof == "grep shows key IS handled"
+
+
+def test_deny_with_whitespace_proof_is_blocked():
+    with pytest.raises(GuardrailError):
+        transition(_c(), "denied", "2026-07-17", proof="   ")
 
 
 def test_ledger_roundtrip(tmp_path):
@@ -40,3 +46,12 @@ def test_ledger_roundtrip(tmp_path):
     loaded = load_ledger(path)
     assert [x.id for x in loaded] == ["C-001", "C-002"]
     assert loaded[1].author == "Iris"
+
+
+def test_ledger_roundtrip_preserves_history(tmp_path):
+    path = tmp_path / "ledger.jsonl"
+    c = transition(_c(), "confirmed", "2026-07-17")
+    save_ledger(path, [c])
+    loaded = load_ledger(path)
+    assert loaded[0].history == c.history
+    assert {"date": "2026-07-17", "status": "confirmed"} in loaded[0].history

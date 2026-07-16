@@ -32,15 +32,22 @@ def validate_state(data: dict) -> list[str]:
             errors.append(f"missing required top-level key: {key}")
         elif not isinstance(data[key], typ):
             errors.append(f"key {key} must be {typ.__name__}")
-    for i, finding in enumerate(data.get("findings", []) or []):
-        if not isinstance(finding, dict):
-            errors.append(f"findings[{i}] must be an object")
-            continue
-        for key, typ in FINDING_REQUIRED.items():
-            if key not in finding:
-                errors.append(f"findings[{i}] missing field: {key}")
-            elif not isinstance(finding[key], typ):
-                errors.append(f"findings[{i}].{key} must be {typ.__name__}")
+    agents = data.get("agents", [])
+    if isinstance(agents, list):
+        for i, agent in enumerate(agents):
+            if not isinstance(agent, str):
+                errors.append(f"agents[{i}] must be str")
+    findings = data.get("findings", [])
+    if isinstance(findings, list):
+        for i, finding in enumerate(findings):
+            if not isinstance(finding, dict):
+                errors.append(f"findings[{i}] must be an object")
+                continue
+            for key, typ in FINDING_REQUIRED.items():
+                if key not in finding:
+                    errors.append(f"findings[{i}] missing field: {key}")
+                elif not isinstance(finding[key], typ):
+                    errors.append(f"findings[{i}].{key} must be {typ.__name__}")
     return errors
 
 

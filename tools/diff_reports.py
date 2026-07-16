@@ -31,7 +31,11 @@ def main(argv: list[str] | None = None) -> int:
     if len(argv) != 2:
         sys.stderr.write("usage: diff_reports <old_dir> <new_dir>\n")
         return 2
-    sys.stdout.write(diff_dirs(Path(argv[0]), Path(argv[1])))
+    try:
+        sys.stdout.write(diff_dirs(Path(argv[0]), Path(argv[1])))
+    except RuntimeError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 1
     return 0
 
 

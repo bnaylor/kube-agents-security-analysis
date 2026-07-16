@@ -28,3 +28,16 @@ def test_ingest_creates_open_and_clears_inbox():
     assert new[0].id == "C-001"
     assert new[0].raised == "2026-07-16"
     assert remaining.strip() == ""
+
+
+MULTI = SAMPLE + '''- author: Iris
+  target: Runtime — "no gVisor"
+  correction: gVisor runtimeClass is configured.
+'''
+
+
+def test_ingest_multiple_entries_increment_ids():
+    new, remaining = ingest_inbox(MULTI, [], "2026-07-16")
+    assert [c.id for c in new] == ["C-001", "C-002"]
+    assert [c.author for c in new] == ["Reviewer", "Iris"]
+    assert remaining.strip() == ""
