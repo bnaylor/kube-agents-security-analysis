@@ -7,6 +7,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from shutil import which
 
 
 @dataclass
@@ -60,7 +61,6 @@ def evaluate_check(check: Check, base: Path) -> CheckResult:
 
 
 def _which(exe: str):
-    from shutil import which
     return which(exe)
 
 
@@ -79,7 +79,7 @@ DEFAULT_CHECKS: list[Check] = [
 ]
 
 
-def main(argv: list[str] | None = None) -> int:
+def main() -> int:
     base = Path(os.environ.get("KUBE_AGENTS_DIR", ".")).resolve()
     result = run_preflight(base, DEFAULT_CHECKS)
     sys.stdout.write(result.report_md())
