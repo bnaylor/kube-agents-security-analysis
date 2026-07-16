@@ -1,2 +1,6 @@
 .DS_Store
 **/.onedoc/snapshots/
+.superpowers/
+__pycache__/
+*.pyc
+.pytest_cache/
