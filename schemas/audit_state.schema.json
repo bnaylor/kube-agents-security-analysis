@@ -1,0 +1,26 @@
+{
+  "title": "audit_state",
+  "type": "object",
+  "required": ["generated_at", "kube_agents_ref", "install_namespace", "agents", "findings"],
+  "properties": {
+    "generated_at": {"type": "string", "description": "YYYY-MM-DD UTC"},
+    "kube_agents_ref": {"type": "string", "description": "git sha of the audited repo"},
+    "install_namespace": {"type": "string"},
+    "agents": {"type": "array", "items": {"type": "string"}},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "tab", "statement", "severity", "evidence", "tracking"],
+        "properties": {
+          "id": {"type": "string"},
+          "tab": {"type": "string"},
+          "statement": {"type": "string"},
+          "severity": {"type": "string"},
+          "evidence": {"type": "string", "description": "file:line"},
+          "tracking": {"type": "string", "description": "kube-agents issue/PR link or UNTRACKED"}
+        }
+      }
+    }
+  }
+}
