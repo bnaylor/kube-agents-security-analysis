@@ -13,7 +13,7 @@ This document analyzes the privilege models for the **Platform Agent** in the up
 
 ## 1. Current Privilege Baseline (Default Stance)
 
-In the default deployment script ([provision_03_gcp_iam.sh](file://k8s-operator/scripts/provision_03_gcp_iam.sh#L154)), the Platform Agent's GCP Service Account (`platform-agent-sa`) is granted the following project-wide roles:
+In the default deployment script ([provision_03_gcp_iam.sh](k8s-operator/scripts/provision_03_gcp_iam.sh#L154)), the Platform Agent's GCP Service Account (`platform-agent-sa`) is granted the following project-wide roles:
 
 * `roles/container.admin` (Kubernetes Engine Admin)
 * `roles/container.clusterAdmin` (Kubernetes Engine Cluster Admin)
@@ -27,7 +27,7 @@ On the management Kubernetes cluster, the agent's KSA (`platform-agent`) is boun
 * `kubeagents:explorer` ClusterRole (read access to `nodes`, `pods`, `namespaces`, and `customresourcedefinitions`)
 
 ### Security Evaluation of Default Stance
-* **Discrepancy**: The agent's core instructions ([SOUL.md: L11](file://agents/platform/SOUL.md#L11)) mandate a **Declarative First / GitOps Workflow**, strictly forbidding manual cluster API mutations. However, its GCP GSA holds full `container.admin` privileges.
+* **Discrepancy**: The agent's core instructions ([SOUL.md: L11](agents/platform/SOUL.md#L11)) mandate a **Declarative First / GitOps Workflow**, strictly forbidding manual cluster API mutations. However, its GCP GSA holds full `container.admin` privileges.
 * **Prompt Injection Threat**: Because the agent is user-facing (exposed to Google Chat, Slack, or webhooks), a successful prompt injection attack could allow an adversary to invoke `gcloud` or `kubectl` tools with full GKE administrative rights, bypassing declarative PR review gates.
 
 ---
@@ -101,7 +101,7 @@ When the Read-Only Advisor Agent identifies a problem (e.g. crashing pod due to 
 
 ## 4. Implementation Guide for Read-Only Stance
 
-To switch the harness to the **Read-Only Advisor Scenario**, modify [provision_03_gcp_iam.sh](file://k8s-operator/scripts/provision_03_gcp_iam.sh#L154):
+To switch the harness to the **Read-Only Advisor Scenario**, modify [provision_03_gcp_iam.sh](k8s-operator/scripts/provision_03_gcp_iam.sh#L154):
 
 ```bash
 # Step 3: Configure Platform Agent IAM (Read-Only Advisor Profile)

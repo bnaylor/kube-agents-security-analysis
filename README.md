@@ -17,8 +17,8 @@ and diffed over time rather than re-derived from scratch.
 
 | Path | What it is |
 |------|-----------|
-| `specs/2026-07-16-audit-framework-design.md` | The approved v2 framework design (domains, tabs, corrections ledger, drift resistance). Start here. |
-| `specs/plans/2026-07-16-audit-foundation-tooling.md` | The implementation plan for the tooling below. |
+| `docs/specs/2026-07-16-audit-framework-design.md` | The approved v2 framework design (domains, tabs, corrections ledger, drift resistance). Start here. |
+| `docs/specs/plans/2026-07-16-audit-foundation-tooling.md` | The implementation plan for the tooling below. |
 | `tools/` | Stdlib-only Python tools the v2 audit orchestrates (see [Tooling](#tooling)). |
 | `tests/` | `pytest` suite for `tools/` (dev-only dependency). |
 | `schemas/audit_state.schema.json` | Shape of the `audit_state.json` ground-truth artifact a run produces. |
@@ -66,10 +66,11 @@ SRC_DIR=/path/to/src KUBE_AGENTS_DIR=/path/to/kube-agents ./run_security_analysi
 otherwise it prints the prompt to run in your agent session). Once the Markdown
 files exist, `generate.sh <date>` builds the Google Doc.
 
-**External dependencies:** `generate.sh` shells out to `onedoc` (a Google-internal
-binary) to create the Google Doc, and `run_security_analysis.sh` uses `agentapi`
-to launch the agent. Both are optional to the tooling below — you can produce and
-read the Markdown reports without them.
+**External dependencies:** `generate.sh` shells out to an `onedoc` binary to
+create the Google Doc — set `ONEDOC_BIN` to its path (defaults to `onedoc` on
+`PATH`) — and `run_security_analysis.sh` uses `agentapi` to launch the agent.
+Both are optional to the tooling below — you can produce and read the Markdown
+reports without them.
 
 ## Tooling
 

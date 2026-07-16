@@ -29,7 +29,7 @@ The `kube-agents` harness uses the **GitHub Token Broker (Minty)** ([abcxyz/gith
 
 ## 2. Token Refresh Script Workflow
 
-The token refresher script ([github_token_refresh.py](file://agents/platform/scripts/github_token_refresh.py)) performs the following sequence:
+The token refresher script ([github_token_refresh.py](agents/platform/scripts/github_token_refresh.py)) performs the following sequence:
 
 1. **Reads Projected K8s Token**: Reads the pod's service account OIDC JWT token.
 2. **Resolves Target Repository**: Parses `remote.origin.url` from git config, or accepts `<owner>/<repo>` positional arguments.
@@ -40,7 +40,7 @@ The token refresher script ([github_token_refresh.py](file://agents/platform/scr
 
 ## 3. Minty CEL Policy & Hardening
 
-Minty's access policy is configured via ConfigMap ([integrations/github/configmap.yaml](file://integrations/github/README.md#L158)). 
+Minty's access policy is configured via ConfigMap ([integrations/github/configmap.yaml](integrations/github/README.md#L158)). 
 
 ### Security Verification Rule:
 Ensure that Minty's CEL rule strictly verifies both the **OIDC Issuer** (matching the GKE cluster) and the **ServiceAccount Subject**:

@@ -15,7 +15,7 @@ This document analyzes the current admission webhooks in `k8s-operator/internal/
 
 In the updated codebase, the operator manages a single Custom Resource Definition: `PlatformAgent` (`platformagents.kubeagents.x-k8s.io`).
 
-The corresponding webhook handlers are defined in [platformagent_webhook.go](file://k8s-operator/internal/webhook/platformagent_webhook.go):
+The corresponding webhook handlers are defined in [platformagent_webhook.go](k8s-operator/internal/webhook/platformagent_webhook.go):
 * **Mutating Webhook** (`/mutate-kubeagents-x-k8s-io-v1alpha1-platformagent`): Standard Kubebuilder defaulter scaffolding.
 * **Validating Webhook** (`/validate-kubeagents-x-k8s-io-v1alpha1-platformagent`): Implements custom validation logic during `CREATE` and `UPDATE` operations.
 

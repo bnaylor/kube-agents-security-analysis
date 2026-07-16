@@ -36,7 +36,7 @@ The following operations are considered completely routine and safe to run auton
 ### B. File Operations
 * **Report Generation:** Writing or modifying files matching `*.md` inside directories matching date formats (e.g., `YYYY-MM-DD/`, like `2026-07-15/`) within this workspace.
 * **TOC Management:** Modifying root `toc.md` or copying/editing `toc.md` in individual report directories.
-* **Spec/Design Creation:** Adding/updating design files inside `specs/` (e.g., `specs/2026-07-16-audit-framework-design.md`) and `docs/reviews/` following OKF structure.
+* **Spec/Design Creation:** Adding/updating design files inside `docs/specs/` (e.g., `docs/specs/2026-07-16-audit-framework-design.md`) and `docs/reviews/` following OKF structure.
 * **Local Configuration:** Updating `.iris/vibecop.md` or any local memory files inside `.iris/` or `~/.iris/`.
 
 ---

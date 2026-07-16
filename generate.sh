@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-onedoc='onedoc'
+# Path to the onedoc binary used to build the Google Doc.
+# Override with ONEDOC_BIN; defaults to whatever `onedoc` is on PATH.
+onedoc="${ONEDOC_BIN:-onedoc}"
 d="${1:-$(date +"%Y-%m-%d")}"
 datestr=$(date +"%B %d, %Y")
 gdate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
