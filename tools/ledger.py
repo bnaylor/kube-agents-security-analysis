@@ -124,3 +124,39 @@ def ingest_inbox(inbox_text: str, existing: list[Correction],
         new.append(c)
         pool.append(c)
     return new, ""
+
+
+def render_markdown(items: list[Correction], active_only: bool = True) -> str:
+    active = [c for c in items if c.status in ("open", "confirmed", "absorbed")]
+    denied = [c for c in items if c.status == "denied"]
+    archived = [c for c in items if c.status == "retired"]
+
+    out = ["# Corrections & Feedback", ""]
+    out.append("## Active")
+    out.append("")
+    for c in active:
+        out.append(_render_entry(c))
+    if denied:
+        out += ["", "## Documented false-positives", ""]
+        for c in denied:
+            out.append(_render_entry(c))
+    if not active_only and archived:
+        out += ["", "## Retired (archived)", ""]
+        for c in archived:
+            out.append(_render_entry(c))
+    return "\n".join(out) + "\n"
+
+
+def _render_entry(c: Correction) -> str:
+    parts = [
+        f"### {c.id} — {c.status} (raised {c.raised} by {c.author})",
+        f"- **Target:** {c.target}",
+        f"- **Correction:** {c.correction}",
+    ]
+    if c.verification:
+        parts.append(f"- **Verification:** {c.verification}")
+    if c.proof:
+        parts.append(f"- **Proof:** {c.proof}")
+    if c.resolution:
+        parts.append(f"- **Resolution:** {c.resolution}")
+    return "\n".join(parts) + "\n"
