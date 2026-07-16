@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
@@ -65,3 +66,61 @@ def save_ledger(path: Path, items: list[Correction]) -> None:
         "".join(json.dumps(asdict(c), ensure_ascii=False) + "\n" for c in items),
         encoding="utf-8",
     )
+
+
+_ID_RE = re.compile(r"C-(\d+)")
+
+
+@dataclass
+class InboxEntry:
+    author: str
+    target: str
+    correction: str
+
+
+def parse_inbox(text: str) -> list[InboxEntry]:
+    entries: list[InboxEntry] = []
+    cur: dict[str, str] | None = None
+    key: str | None = None
+    for raw in text.splitlines():
+        m = re.match(r"-\s+author:\s*(.*)$", raw)
+        if m:
+            if cur:
+                entries.append(_finish_entry(cur))
+            cur = {"author": m.group(1).strip(), "target": "", "correction": ""}
+            key = "author"
+            continue
+        if cur is None:
+            continue
+        m = re.match(r"\s+(target|correction):\s*(.*)$", raw)
+        if m:
+            key = m.group(1)
+            cur[key] = m.group(2).strip()
+        elif raw.strip() and key in ("target", "correction"):
+            cur[key] = (cur[key] + " " + raw.strip()).strip()
+    if cur:
+        entries.append(_finish_entry(cur))
+    return entries
+
+
+def _finish_entry(cur: dict[str, str]) -> InboxEntry:
+    return InboxEntry(cur["author"], cur["target"], cur["correction"])
+
+
+def next_id(existing: list[Correction]) -> str:
+    nums = [int(m.group(1)) for c in existing if (m := _ID_RE.fullmatch(c.id))]
+    return f"C-{(max(nums) + 1) if nums else 1:03d}"
+
+
+def ingest_inbox(inbox_text: str, existing: list[Correction],
+                 today: str) -> tuple[list[Correction], str]:
+    new: list[Correction] = []
+    pool = list(existing)
+    for entry in parse_inbox(inbox_text):
+        cid = next_id(pool)
+        c = Correction(id=cid, raised=today, author=entry.author,
+                       target=entry.target, correction=entry.correction,
+                       status="open", history=[{"date": today, "status": "open"}])
+        new.append(c)
+        pool.append(c)
+    return new, ""
