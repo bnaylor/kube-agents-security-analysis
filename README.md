@@ -9,7 +9,7 @@ and diffed over time rather than re-derived from scratch.
 > **6-domain / 13-tab framework** (corrections feedback loop + drift resistance)
 > is complete: the stdlib-only `tools/` package, the 11 tab templates in
 > `templates/`, the two-phase `SKILL.md`, and the rewired `generate.sh`/`toc.md`
-> (49 passing tests). The one thing not yet exercised is a **live agent run**
+> (62 passing tests). The one thing not yet exercised is a **live agent run**
 > producing a real `audit_state.json` + filled tabs and a Google Doc (needs the
 > agent runtime and the `onedoc` binary); the mechanical spine — pre-flight, the
 > corrections and What's-Changed tools — is smoke-tested against the real
@@ -76,10 +76,25 @@ create the Google Doc — set `ONEDOC_BIN` to its path (defaults to `onedoc` on
 Both are optional to the tooling below — you can produce and read the Markdown
 reports without them.
 
+### HTML report (no `onedoc`)
+
+To view or share a run **without `onedoc`**, generate a single self-contained
+HTML file:
+
+```bash
+python3 -m tools.html_report 2026-07-15      # writes 2026-07-15/report.html
+./tools/html_report.sh 2026-07-15            # thin wrapper
+```
+
+`report.html` bundles all 13 tabs (left-sidebar nav), the CSS, and mermaid.js
+inline — it opens by double-click and renders offline anywhere, no network. This
+path depends on the `markdown` library (see `requirements.txt`); the audit tools
+below stay dependency-free.
+
 ## Tooling
 
-Stdlib-only Python (no runtime third-party deps). Modules live in the `tools/`
-package; run them from the repo root.
+Stdlib-only Python, except `html_report` (which uses the `markdown` library).
+Modules live in the `tools/` package; run them from the repo root.
 
 ```bash
 # Pre-flight: fail loudly if the audited repo's expected paths have drifted
@@ -97,6 +112,9 @@ python3 -m tools.process_corrections 2026-07-16      # exit 1 if any inbox line 
 
 # Assemble the deterministic run-over-run delta for the What's Changed tab
 python3 -m tools.whats_changed 2026-07-16
+
+# Render the run's 13 tabs into one self-contained report.html (needs `markdown`)
+python3 -m tools.html_report 2026-07-16
 ```
 
 Each tool also has a thin `./tools/<name>.sh` wrapper.
