@@ -5,6 +5,11 @@ codebase. Each run produces a set of date-stamped Markdown analyses that are
 compiled into a tabbed Google Doc for human review, so posture can be tracked
 and compared over time rather than re-derived from scratch.
 
+Each report is a **snapshot** — it describes what is true in the code at that
+commit. It carries no cross-run tracking of its own (finding IDs are per-run
+handles, not stable identifiers); fix tracking lives in your bug tools, and
+run-over-run "What's Changed" is a count-based summary, not a per-finding diff.
+
 > **Status: v2 built, pending a live end-to-end run.** The structured
 > **6-domain / 13-tab framework** (corrections feedback loop + drift resistance)
 > is complete: the stdlib-only `tools/` package, the 11 tab templates in
