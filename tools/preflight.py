@@ -9,6 +9,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from shutil import which
 
+# Bound command checks so a slow-to-fail tool (e.g. `kubectl` with no reachable
+# cluster) cannot stall the whole pre-flight.
+_COMMAND_TIMEOUT = 10
+
 
 @dataclass
 class Check:
@@ -47,7 +51,12 @@ def evaluate_check(check: Check, base: Path) -> CheckResult:
         exe = shlex.split(check.target)[0]
         if _which(exe) is None:
             return CheckResult(check, passed=False, skipped=True, detail="tool not present")
-        proc = subprocess.run(shlex.split(check.target), capture_output=True, text=True)
+        try:
+            proc = subprocess.run(shlex.split(check.target), capture_output=True,
+                                  text=True, timeout=_COMMAND_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            return CheckResult(check, passed=False, skipped=True,
+                               detail=f"timed out after {_COMMAND_TIMEOUT}s")
         return CheckResult(check, passed=proc.returncode == 0, skipped=False,
                            detail=f"exit {proc.returncode}")
     path = base / check.target
