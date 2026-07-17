@@ -11,14 +11,13 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "tab", "statement", "severity", "evidence", "tracking"],
+        "required": ["id", "tab", "statement", "severity", "evidence"],
         "properties": {
           "id": {"type": "string"},
           "tab": {"type": "string"},
           "statement": {"type": "string"},
           "severity": {"type": "string"},
-          "evidence": {"type": "string", "description": "file:line"},
-          "tracking": {"type": "string", "description": "kube-agents issue/PR link or UNTRACKED"}
+          "evidence": {"type": "string", "description": "file:line"}
         }
       }
     }

@@ -25,18 +25,21 @@ def test_previous_run_dir_ignores_non_date_dirs(tmp_path):
     assert previous_run_dir(tmp_path, "2026-07-16") == tmp_path / "2026-07-15"
 
 
-def test_assemble_reports_dir_and_findings_delta(tmp_path):
+def test_assemble_reports_counts_and_refs(tmp_path):
     prev = tmp_path / "2026-07-15"
     cur = tmp_path / "2026-07-16"
-    _mk(prev, {"report.md": "old\n",
-               "audit_state.json": json.dumps({"findings": [{"id": "F-1", "statement": "x"}]})})
-    _mk(cur, {"report.md": "new\n",
-              "audit_state.json": json.dumps({"findings": [{"id": "F-2", "statement": "y"}]})})
+    _mk(prev, {"audit_state.json": json.dumps({"kube_agents_ref": "old111",
+        "findings": [{"id": "F-1", "severity": "High"},
+                     {"id": "F-2", "severity": "Low"}]})})
+    _mk(cur, {"audit_state.json": json.dumps({"kube_agents_ref": "new222",
+        "findings": [{"id": "F-3", "severity": "High"}]})})
     r = assemble(prev, cur)
     assert r["previous"] == "2026-07-15" and r["current"] == "2026-07-16"
-    assert "report.md" in r["dir_diff"]
-    assert [f["id"] for f in r["findings"]["added"]] == ["F-2"]
-    assert [f["id"] for f in r["findings"]["removed"]] == ["F-1"]
+    assert r["previous_ref"] == "old111" and r["current_ref"] == "new222"
+    assert r["previous_count"] == 2 and r["current_count"] == 1
+    assert r["previous_by_severity"] == {"High": 1, "Low": 1}
+    assert r["current_by_severity"] == {"High": 1}
+    assert "dir_diff" not in r and "findings" not in r
 
 
 def test_assemble_tolerates_missing_audit_state(tmp_path):
@@ -45,4 +48,6 @@ def test_assemble_tolerates_missing_audit_state(tmp_path):
     _mk(prev, {"report.md": "old\n"})
     _mk(cur, {"report.md": "new\n"})
     r = assemble(prev, cur)
-    assert r["findings"] == {"added": [], "removed": [], "changed": []}
+    assert r["previous_count"] == 0 and r["current_count"] == 0
+    assert r["previous_ref"] is None and r["current_ref"] is None
+    assert r["previous_by_severity"] == {} and r["current_by_severity"] == {}

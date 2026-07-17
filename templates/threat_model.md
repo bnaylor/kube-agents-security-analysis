@@ -17,8 +17,8 @@
 <!-- The stance contrast lives here and only here.
      Note explicitly: read-only-against-cluster != zero-write — the Read-Only
      Advisor still holds a GitOps write channel via its GitHub token (audited
-     in Tab 10). Each material finding carries an owner/tracking link
-     (kube-agents issue/PR, or UNTRACKED) so recurring findings have a home. -->
+     in Tab 10). Each material finding names a responsible owner so recurring
+     findings have a clear escalation path. -->
 
 ## Out-of-Scope / False-Positive Criteria
 

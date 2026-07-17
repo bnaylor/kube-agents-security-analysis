@@ -10,4 +10,4 @@
 
 ## Inter-Agent Auth
 <!-- call_agent; note the API_SERVER_KEY "none" fallback in
-     agent_common_server.py — carry an owner/tracking link. -->
+     agent_common_server.py — name the responsible owner. -->

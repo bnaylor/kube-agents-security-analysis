@@ -59,3 +59,8 @@ def test_non_str_agent_is_error():
     data = _valid(); data["agents"] = [1]
     errs = validate_state(data)
     assert any("agents[0] must be str" in e for e in errs)
+
+
+def test_finding_without_tracking_is_valid():
+    data = _valid(); del data["findings"][0]["tracking"]
+    assert validate_state(data) == []

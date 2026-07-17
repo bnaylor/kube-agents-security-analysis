@@ -19,7 +19,6 @@ FINDING_REQUIRED: dict[str, type] = {
     "statement": str,
     "severity": str,
     "evidence": str,
-    "tracking": str,
 }
 
 
