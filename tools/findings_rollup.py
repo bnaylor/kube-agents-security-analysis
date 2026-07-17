@@ -50,15 +50,15 @@ def render_findings(findings: list[dict]) -> str:
         out.append("_No findings recorded for this run._")
         return "\n".join(out) + "\n"
     out += ["Grab one by **ID** at sprint planning.", "", "## Action items", ""]
-    out.append("| ID | Severity | Domain | Finding | Evidence | Tracking |")
-    out.append("|----|----------|--------|---------|----------|----------|")
+    out.append("| ID | Severity | Domain | Finding | Evidence |")
+    out.append("|----|----------|--------|---------|----------|")
     action = sorted((f for f in findings if f.get("severity") != "Info"),
                     key=lambda f: (_rank(f.get("severity", "")), str(f.get("id", ""))))
     for f in action:
-        out.append("| {i} | {s} | {d} | {t} | {e} | {k} |".format(
+        out.append("| {i} | {s} | {d} | {t} | {e} |".format(
             i=_cell(f.get("id", "")), s=_cell(f.get("severity", "")),
             d=_cell(_domain(f)), t=_cell(f.get("statement", "")),
-            e=_cell(f.get("evidence", "")), k=_cell(f.get("tracking", ""))))
+            e=_cell(f.get("evidence", ""))))
     info = [f for f in findings if f.get("severity") == "Info"]
     if info:
         out += ["", "## Informational", "", "| ID | Domain | Note |", "|----|--------|------|"]

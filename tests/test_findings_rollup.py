@@ -68,3 +68,10 @@ def test_main_missing_state_writes_note(tmp_path):
     run = tmp_path / "2026-07-16"; run.mkdir()
     assert main(["2026-07-16", str(tmp_path)]) == 0
     assert "No `audit_state.json`" in (run / "findings.md").read_text(encoding="utf-8")
+
+
+def test_no_tracking_column():
+    out = render_findings(F)
+    header = [ln for ln in out.splitlines() if ln.startswith("| ID ")][0]
+    assert "Tracking" not in header
+    assert header.count("|") == 6  # 5 columns -> 6 pipes
