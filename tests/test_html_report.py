@@ -15,6 +15,18 @@ def test_build_report_structure(tmp_path, monkeypatch):
     assert "<h1>Changed</h1>" in out                           # rendered tab body
 
 
+def test_build_report_lazy_renders_mermaid(tmp_path, monkeypatch):
+    # Mermaid must NOT auto-run at load: a diagram in a display:none pane renders
+    # with NaN coordinates (broken) and is then marked processed forever. It must
+    # render per-pane when the pane becomes visible.
+    monkeypatch.setattr(hr, "_load_asset", lambda n: "X")
+    (tmp_path / "whats_changed.md").write_text("# c\n", encoding="utf-8")
+    out = hr.build_report(tmp_path, [("whats_changed.md", "W")])
+    assert "startOnLoad: false" in out
+    assert "mermaid.run(" in out
+    assert "renderMermaid(" in out
+
+
 def test_render_table():
     md = "| a | b |\n| :-- | :-- |\n| 1 | 2 |\n"
     assert "<table>" in render_tab(md)

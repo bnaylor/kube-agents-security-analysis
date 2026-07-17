@@ -60,13 +60,24 @@ _TEMPLATE = """<!DOCTYPE html>
 </div>
 <script>{mermaid_js}</script>
 <script>
-mermaid.initialize({{ startOnLoad: true }});
+// Render mermaid lazily: a diagram in a display:none pane measures as zero-size
+// and renders with NaN coordinates (broken), so only run mermaid on a pane once
+// it is actually visible.
+mermaid.initialize({{ startOnLoad: false }});
+function renderMermaid(pane) {{
+  if (!pane) return;
+  var nodes = pane.querySelectorAll('.mermaid:not([data-processed])');
+  if (nodes.length) {{ mermaid.run({{ nodes: Array.prototype.slice.call(nodes) }}); }}
+}}
+renderMermaid(document.querySelector('.pane.active'));
 document.querySelectorAll('.nav-item').forEach(function (it) {{
   it.addEventListener('click', function () {{
     document.querySelectorAll('.nav-item').forEach(function (n) {{ n.classList.remove('active'); }});
     document.querySelectorAll('.pane').forEach(function (p) {{ p.classList.remove('active'); }});
     it.classList.add('active');
-    document.getElementById(it.dataset.tab).classList.add('active');
+    var pane = document.getElementById(it.dataset.tab);
+    pane.classList.add('active');
+    renderMermaid(pane);
   }});
 }});
 </script>
