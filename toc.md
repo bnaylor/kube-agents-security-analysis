@@ -9,13 +9,19 @@ This is a point-in-time analysis of the security posture, risks, and threat mode
 kube_agents is actively under development; all details are subject to change.
 
 **The document tabs at the left cover the following areas:**
-* Architectural and Security Summary
-* Threat Model
 
-* **Next Steps**
-    * Least Privilege Analysis (Platform Agent)
-    * Webhook Analysis
-    * DevTeam Token Refresh Mechanism (bug)
-    * Normal mode vs YOLO mode
+* What's Changed
+* Architectural & Security Summary
+* Threat Model
+* Least-Privilege Inventory
+* Secrets & Token Brokering
+* Prompt Injection & Untrusted Input
+* Tools, MCP & Inter-Agent Trust
+* Skills & Autonomy
+* Admission Control (Webhooks)
+* Runtime Hardening & Network
+* GitOps & CI/CD Integrity
+* Data, Audit & Detection
+* Corrections & Feedback
 
 

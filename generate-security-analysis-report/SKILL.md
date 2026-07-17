@@ -1,83 +1,129 @@
 ---
 name: generate-security-analysis-report
-description: Audits the kube-agents repository security posture, generates 6 date-stamped markdown analysis files directly in ~/src/kube-agents-security-analysis/<YYYY-MM-DD>/, and triggers tabbed Google Doc generation.
+description: Runs a repeatable, structured security audit of the kube-agents repository — a mechanical drift pre-flight, then a two-phase inspect→audit_state.json→render pass that produces 13 date-stamped Markdown tabs (6 domains + What's Changed + Corrections), processes reviewer corrections, and compiles a tabbed Google Doc.
 ---
 
 # Task
-Perform a comprehensive security audit of the `kube-agents` repository. Analyze the current codebase architecture, RBAC bindings, GCP IAM permissions, admission webhooks, and token brokering setup. Generate 6 date-stamped Markdown analysis files directly in `${SRC_DIR:-$HOME/src}/kube-agents-security-analysis/<YYYY-MM-DD>/` and invoke `generate.sh` to produce a tabbed Google Doc.
+
+Produce the v2 kube-agents security report for a target date. The report is
+**13 tabs across 6 domains** plus a run-over-run "What's Changed" summary and a
+cross-run Corrections ledger. Design and rationale live in
+`docs/specs/2026-07-16-audit-framework-design.md` — read it if intent is unclear.
+
+Execution is **two-phase**: inspect the repo once and export a single
+ground-truth `audit_state.json`, then render every tab from that JSON. This keeps
+the 13 tabs mutually consistent and keeps the diffing deterministic.
+
+Inspection is **hybrid intent + dated path-hints**: each step says *what to find*
+first, then lists today's known paths marked `as of 2026-07-16 — verify`. Re-ground
+every run; do not trust a hint that no longer resolves.
 
 ---
 
-# Execution Steps
+# Step 0 — Pre-flight verification (mechanical, hard-fail)
 
-## Step 1: Target Directory & Path Resolution
-1. Resolve environment paths:
-   - `SRC_DIR="${SRC_DIR:-$HOME/src}"`
-   - `KUBE_AGENTS_DIR="${KUBE_AGENTS_DIR:-$SRC_DIR/kube-agents}"`
-   - `ANALYSIS_DIR="${ANALYSIS_DIR:-$SRC_DIR/kube-agents-security-analysis}"`
-2. Obtain the target UTC date in `YYYY-MM-DD` format (e.g. `2026-07-15`).
-3. Set the target output directory:
-   `${ANALYSIS_DIR}/<YYYY-MM-DD>/`
-4. Ensure the target directory exists (`mkdir -p`).
+Before any analysis, confirm the audited repo hasn't drifted out from under the
+dated hints:
 
-## Step 2: Codebase Architecture & Security Inspection
-Audit the target repository (`${KUBE_AGENTS_DIR}`) to capture current operational realities:
-1. **Agent Architecture**: Check `agents/` and `README.md` to identify whether the repository uses a single-agent (`platform`) or multi-agent (`platform`, `devteam`, `operator`) model.
-2. **Custom Resources**: Inspect `k8s-operator/api/v1alpha1/` to identify active Custom Resource Definitions (e.g., `PlatformAgent`).
-3. **Controller Logic & RBAC**: Inspect `k8s-operator/internal/controller/` to determine controller privileges and generated Kubernetes RBAC roles (`ClusterRole`, `ClusterRoleBinding`).
-4. **Admission Webhooks**: Inspect `k8s-operator/internal/webhook/` to evaluate active mutating/validating webhooks (cardinality checks, GCS locks, validation gates).
-5. **GCP IAM Permissions**: Inspect `k8s-operator/scripts/provision_03_gcp_iam.sh` to determine the GCP IAM roles granted to agent Google Service Accounts (GSAs).
-6. **Token Brokering**: Inspect `integrations/github/` and `agents/platform/scripts/github_token_refresh.py` to evaluate GitHub Token Broker (Minty) integration, OIDC claims, and KMS key usage.
-7. **YOLO Stance Evaluation**: Check for external/branch permission documentation (such as `YOLO_PERMISSIONS.md`) or active branch configurations to compare against default templates.
+```
+cd "${ANALYSIS_DIR}" && KUBE_AGENTS_DIR="${KUBE_AGENTS_DIR}" python3 -m tools.preflight
+```
 
-## Step 3: Markdown Files Generation
-Directly write the following 6 Markdown files inside `${ANALYSIS_DIR}/<YYYY-MM-DD>/`:
+If it exits non-zero, **stop**: record the drift report as the first item in this
+run's What's Changed tab and reconcile the hints/inspection steps before continuing.
+Drift is a hard failure, not a warning.
 
-### 1. `architectural_summary.md`
-- System Architecture & Agent Model (single-agent vs multi-agent).
-- Component Directory & Role Analysis.
-- Privilege & Identity Matrix (Default Stance vs Read-Only Advisor Stance).
-- Key Security Boundaries.
-- Mermaid System Diagram (MUST use valid quoted subgraph syntax, e.g., `subgraph "Management Cluster (GKE)"`).
+Resolve paths first:
+- `SRC_DIR="${SRC_DIR:-$HOME/src}"`
+- `KUBE_AGENTS_DIR="${KUBE_AGENTS_DIR:-$SRC_DIR/kube-agents}"`
+- `ANALYSIS_DIR="${ANALYSIS_DIR:-$SRC_DIR/kube-agents-security-analysis}"`
+- Target UTC date `YYYY-MM-DD`; ensure `${ANALYSIS_DIR}/<date>/` exists.
 
-### 2. `threat_model.md`
-- Follow standard `determine-threat-model` structure:
-  - Component Overview
-  - Entry Points & Untrusted Inputs
-  - Trust Boundaries & Auth Assumptions
-  - Sensitive Data Paths
-  - Privileged Actions Matrix (Default vs Read-Only Advisor)
-  - Out-of-Scope / False Positive Criteria
-  - Priority Review Areas
+---
 
-### 3. `webhook_security_analysis.md`
-- Webhook Audit of active handlers in `k8s-operator/internal/webhook/`.
-- Current Validation Logic (Cardinality, GCS Project Lock).
-- Identified Security Gaps & Proposed Hardening Gates (ServiceAccount restrictions, Workload Identity annotation checks, image/env sanitization).
-- Draft Go Validation Implementation Snippets.
+# Phase 1 — Inspection & state export (→ `audit_state.json`)
 
-### 4. `platform_agent_least_privilege_analysis.md`
-- Current Privilege Baseline (`roles/container.admin`, `roles/container.clusterAdmin`, `roles/monitoring.admin`, `roles/logging.admin`, `roles/iam.serviceAccountUser`, `roles/iam.securityReviewer`).
-- Profile A (Declarative GitOps Stance).
-- **Profile B (Hypothetical Read-Only Advisor Scenario)**:
-  - Complete read-only visibility (`container.viewer`, `logging.viewer`, `monitoring.viewer`, `cloudtrace.user`, `iam.securityReviewer`).
-  - Zero write access to K8s cluster or GCP APIs.
-  - Out-of-band mutation flow via Minty PR recommendations.
-- Comparative Stance Analysis & Implementation Guide for `provision_03_gcp_iam.sh`.
+Inspect `${KUBE_AGENTS_DIR}` and write ONE structured ground-truth artifact,
+`${ANALYSIS_DIR}/<date>/audit_state.json`, conforming to
+`schemas/audit_state.schema.json` (top-level: `generated_at`, `kube_agents_ref`
+(git sha), `install_namespace`, `agents`, `findings[]` where each finding has
+`id, tab, statement, severity, evidence` (`file:line`), `tracking` (kube-agents
+issue/PR or `UNTRACKED`)). Then validate it:
 
-### 5. `devteam_token_refresh_analysis.md`
-- Security analysis of GitHub Token Broker (Minty) integration.
-- OIDC claim validation (`X-OIDC-Token`).
-- GCP KMS RSA signing (`AsymmetricSign`).
-- Credential caching with `0600` file modes in `~/.git-credentials`.
-- Single-agent platform token refresher script workflow and CEL policy scope requirements.
+```
+cd "${ANALYSIS_DIR}" && python3 -m tools.validate_state "<date>/audit_state.json"
+```
 
-### 6. `yolo_security_synthesis.md`
-- Comparative Stance Matrix: Default Stance vs YOLO Stance (`YOLO_PERMISSIONS.md`) vs Read-Only Advisor Stance.
-- Privilege Escalation Vectors (Project IAM Admin takeover, Config Connector `roles/owner` escalation).
-- Master Hardening Checklist.
+## Inspection intents (what to find → hints as of 2026-07-16, verify)
 
-## Step 4: Google Doc Generation Trigger
-Execute the Google Doc generation script:
-`${ANALYSIS_DIR}/generate.sh <YYYY-MM-DD>`
-Report the output Google Doc URL to the user.
+- **Agent model** — confirm the active agent set (expect single `platform`;
+  operator/devteam removed #256). Hint: `agents/`, `agents/platform/config.yaml`.
+- **Custom resources & controller RBAC** — `k8s-operator/api/v1alpha1/`,
+  `k8s-operator/internal/controller/` (ClusterRole/Binding the operator generates).
+- **GCP IAM** — roles granted to the platform GSA. Hint:
+  `k8s-operator/scripts/provision_03_gcp_iam.sh` (resolve current path).
+- **Secrets / token brokering** — Minty/KMS/OIDC-CEL/0600. Hint:
+  `agents/platform/scripts/github_token_refresh.py`, `integrations/github/`.
+- **Untrusted input (agentic)** — enumerate sources reaching the LLM context;
+  the **K8s API is the primary indirect-injection vector**: pod logs/stdout,
+  labels, annotations, CRD specs, events; plus GitHub issues/PRs and chat.
+- **Tools / MCP / inter-agent** — MCP servers & tool scopes; `call_agent` and the
+  `API_SERVER_KEY: "none"` fallback (`agents/platform/scripts/agent_common_server.py`).
+- **Skills & autonomy** — skill provenance (`sync-upstream-skills`), in-pod script
+  execution, cron autonomy & human-gate boundaries.
+- **Admission** — the single `platformagent_webhook.go` (cardinality, GCS lock).
+- **Runtime** — gVisor runtimeClass, SecurityContext, NetworkPolicy egress.
+- **Pipeline** — GitOps `submit-suggestion` flow, branch protection, auto-merge,
+  CI injection; the read-only SRE agent write-channel (kube-agents PR #315);
+  Actions/prow (zizmor); image/dep pins.
+- **Data / audit / detection** — tool-call logging, attribution (#200), trace/PII paths.
+
+---
+
+# Phase 2 — Tab generation (from `audit_state.json`)
+
+Render each tab by filling its template in `templates/` from `audit_state.json`
+ONLY (plus the template's headings). Write to `${ANALYSIS_DIR}/<date>/<file>.md`.
+
+Two structural rules (enforce):
+1. **Threat Model is the spine** — its Priority Review Areas link to the domain tabs.
+2. **The Default/GitOps-vs-Read-Only-Advisor stance contrast lives ONLY in the
+   Threat Model**; other tabs reference it, never restate it.
+
+Authored tabs (template → output file):
+`architectural_summary`, `threat_model`, `least_privilege_inventory`,
+`secrets_token_brokering`, `agentic_prompt_injection`, `agentic_tools_mcp_trust`,
+`agentic_skills_autonomy`, `admission_webhooks`, `runtime_hardening_network`,
+`pipeline_cicd_supply_chain`, `data_audit_detection` (11 templates).
+
+## Step 2a — Corrections processing
+
+```
+cd "${ANALYSIS_DIR}" && python3 -m tools.process_corrections "<date>" "${ANALYSIS_DIR}"
+```
+This ingests `corrections/inbox.md` into `corrections/ledger.jsonl` as `open`
+entries, renders the Corrections tab (`<date>/corrections_feedback.md`), and
+**rewrites the inbox to any unparsed lines** (exit 1 if so — no human comment is
+lost). Then, for each active correction, verify it against current code and
+advance its lifecycle (`open→confirmed|denied→absorbed→retired`); absorbed
+corrections are applied to the relevant domain tab(s). **Never mark a correction
+`denied` without deterministic tool-output proof** (the ledger enforces this).
+
+## Step 2b — What's Changed
+
+```
+cd "${ANALYSIS_DIR}" && python3 -m tools.whats_changed "<date>" "${ANALYSIS_DIR}"
+```
+Curate the structured delta it emits (dir diff + findings added/removed/changed,
+plus any Step-0 drift) into a human-readable `<date>/whats_changed.md`. First run
+(no prior report): a short "baseline — no prior run" note.
+
+---
+
+# Step 3 — Publish
+
+```
+${ANALYSIS_DIR}/generate.sh <date>
+```
+This re-runs the pre-flight + `audit_state.json` validation gates, then compiles
+the 13 tabs into the Google Doc. Report the output URL.

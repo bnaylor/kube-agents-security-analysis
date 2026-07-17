@@ -5,13 +5,19 @@ codebase. Each run produces a set of date-stamped Markdown analyses that are
 compiled into a tabbed Google Doc for human review, so posture can be tracked
 and diffed over time rather than re-derived from scratch.
 
-> **Status: mid-transition.** The repo is moving from a first-generation,
-> ad-hoc report (the `2026-07-15/` run, 6 tabs) to a structured **6-domain /
-> 13-tab framework** with a corrections feedback loop and drift resistance.
-> The framework is designed and its **foundation tooling is built and tested**
-> (`tools/`, 35 passing tests). The reworked audit skill and the 13 tab
-> templates that consume the tooling are **not done yet** (Plan 2). Until then,
-> the v1 pipeline below is what actually generates a report.
+> **Status: v2 wired, pending a live end-to-end run.** The structured
+> **6-domain / 13-tab framework** (corrections feedback loop + drift resistance)
+> is built: the `tools/` package, the 11 tab templates in `templates/`, the
+> two-phase `SKILL.md`, and the rewired `generate.sh`/`toc.md` (46 passing
+> tests). The one thing not yet exercised is a **live agent run** producing a
+> real `audit_state.json` + filled tabs and a Google Doc (needs the agent
+> runtime and the `onedoc` binary). The mechanical spine — pre-flight, the
+> corrections and What's-Changed tools — is smoke-tested against the real
+> `kube-agents` checkout. The `2026-07-15/` directory is the historical v1 run.
+>
+> Known follow-up: `tools/preflight.py`'s optional `command` checks (e.g.
+> `kubectl get ns`) have no subprocess timeout, so they can stall when kubectl
+> is installed but no cluster is reachable — add a `timeout=` to the command check.
 
 ## What's here
 
