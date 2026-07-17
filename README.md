@@ -3,7 +3,7 @@
 A **repeatable, structured security audit** of the [`kube-agents`](https://github.com/gke-labs/kube-agents)
 codebase. Each run produces a set of date-stamped Markdown analyses that are
 compiled into a tabbed Google Doc for human review, so posture can be tracked
-and diffed over time rather than re-derived from scratch.
+and compared over time rather than re-derived from scratch.
 
 > **Status: v2 built, pending a live end-to-end run.** The structured
 > **6-domain / 13-tab framework** (corrections feedback loop + drift resistance)
@@ -104,13 +104,11 @@ KUBE_AGENTS_DIR=/path/to/kube-agents python3 -m tools.preflight   # exit 1 on dr
 # Validate a run's ground-truth artifact
 python3 -m tools.validate_state path/to/audit_state.json          # exit 1 on errors
 
-# Diff two dated report directories (raw input to the "What's Changed" tab)
-python3 -m tools.diff_reports 2026-07-15 2026-07-16
-
 # Process reviewer corrections: inbox.md -> ledger, render the Corrections tab
 python3 -m tools.process_corrections 2026-07-16      # exit 1 if any inbox line was unparsed
 
-# Assemble the deterministic run-over-run delta for the What's Changed tab
+# Assemble the count-based run-over-run summary for the What's Changed tab
+# (previous/current finding counts, per-severity breakdown, kube_agents_ref shas)
 python3 -m tools.whats_changed 2026-07-16
 
 # Render the run's 13 tabs into one self-contained report.html (needs `markdown`)

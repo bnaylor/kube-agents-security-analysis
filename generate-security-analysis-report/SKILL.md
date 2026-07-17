@@ -47,8 +47,9 @@ Inspect `${KUBE_AGENTS_DIR}` and write ONE structured ground-truth artifact,
 `${ANALYSIS_DIR}/<date>/audit_state.json`, conforming to
 `schemas/audit_state.schema.json` (top-level: `generated_at`, `kube_agents_ref`
 (git sha), `install_namespace`, `agents`, `findings[]` where each finding has
-`id, tab, statement, severity, evidence` (`file:line`), `tracking` (kube-agents
-issue/PR or `UNTRACKED`)). Then validate it:
+`id, tab, statement, severity, evidence` (`file:line`)). Finding IDs (`<TAB>-NNN`)
+are **per-run ephemeral** — a handle to point at a row in this report only, not a
+stable cross-run identifier. Then validate it:
 
 ```
 cd "${ANALYSIS_DIR}" && python3 -m tools.validate_state "<date>/audit_state.json"
@@ -114,9 +115,13 @@ corrections are applied to the relevant domain tab(s). **Never mark a correction
 ```
 cd "${ANALYSIS_DIR}" && python3 -m tools.whats_changed "<date>" "${ANALYSIS_DIR}"
 ```
-Curate the structured delta it emits (dir diff + findings added/removed/changed,
-plus any Step-0 drift) into a human-readable `<date>/whats_changed.md`. First run
-(no prior report): a short "baseline — no prior run" note.
+Curate the count summary it emits (previous/current finding counts, per-severity
+breakdown, and the two `kube_agents_ref` shas) into a short prose
+`<date>/whats_changed.md`, e.g. *"Re-audited at `abc123` (was `def456`); 61
+findings, down from 82 — Critical 8→6, High 19→15."* First run (no prior report):
+a short "baseline — no prior run" note. Note there is **no** per-finding diff —
+IDs are per-run ephemeral, so run-over-run comparison is by count, not by finding
+identity.
 
 ## Step 2c — Findings rollup
 
