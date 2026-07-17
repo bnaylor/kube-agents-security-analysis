@@ -48,6 +48,8 @@ echo "Running pre-publish gates..."
 if [ -f "${target_dir}/audit_state.json" ]; then
     ( cd "${base_dir}" && python3 -m tools.validate_state "${target_dir}/audit_state.json" ) \
         || { echo "ERROR: audit_state.json invalid — aborting publish."; exit 1; }
+else
+    echo "WARNING: no ${target_dir}/audit_state.json — publishing without ground-truth validation."
 fi
 
 # Create or get main Google Doc from TOC

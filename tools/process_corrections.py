@@ -19,8 +19,13 @@ _KEY_RE = re.compile(r"\s+(target|correction):\s*.*$")
 
 
 def find_unparsed(inbox_text: str) -> list[str]:
-    """Non-blank inbox lines no recognized entry consumed. Mirrors
-    ledger.parse_inbox's grammar so nothing a human wrote is dropped."""
+    """Non-blank inbox lines that ledger.parse_inbox does NOT fold into an
+    entry (orphan preamble, or a stray line before the first target/correction
+    key). Faithfully mirrors parse_inbox's grammar: while inside a
+    target/correction value, ANY non-blank line is a continuation (no indent
+    required, and a blank line does not end it). This guarantees a line the
+    ledger ingests is never also reported as unparsed (which would rewrite it
+    back to the inbox and re-ingest it as a duplicate)."""
     unparsed: list[str] = []
     in_entry = False
     last_key: str | None = None
@@ -29,18 +34,17 @@ def find_unparsed(inbox_text: str) -> list[str]:
             in_entry, last_key = True, "author"
             continue
         if not raw.strip():
-            last_key = None
-            continue
+            continue  # blank line: skip; like parse_inbox, do NOT reset the key
         if not in_entry:
-            unparsed.append(raw)
+            unparsed.append(raw)  # non-blank preamble before any entry
             continue
         key_match = _KEY_RE.match(raw)
         if key_match:
             last_key = key_match.group(1)
             continue
-        if last_key in ("target", "correction") and raw[:1].isspace():
-            continue  # indented continuation line
-        unparsed.append(raw)
+        if last_key in ("target", "correction"):
+            continue  # continuation of the current value (parse_inbox folds it in)
+        unparsed.append(raw)  # non-blank while last_key == "author": dropped by parse_inbox
     return unparsed
 
 
