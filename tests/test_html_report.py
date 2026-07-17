@@ -37,3 +37,18 @@ def test_strips_frontmatter_and_comments():
     assert "onedoc_gdoc_url" not in out
     assert "guidance" not in out
     assert "<h1>Title</h1>" in out
+
+
+def test_main_writes_report(tmp_path, monkeypatch):
+    monkeypatch.setattr(hr, "_load_asset", lambda n: "X")
+    run = tmp_path / "2026-07-16"
+    run.mkdir()
+    (run / "whats_changed.md").write_text("# Hi\n", encoding="utf-8")
+    assert hr.main(["2026-07-16", str(tmp_path)]) == 0
+    report = run / "report.html"
+    assert report.exists()
+    assert "Hi" in report.read_text(encoding="utf-8")
+
+
+def test_main_missing_run_dir(tmp_path):
+    assert hr.main(["2099-01-01", str(tmp_path)]) == 1

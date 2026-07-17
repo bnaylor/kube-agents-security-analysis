@@ -91,3 +91,25 @@ def build_report(run_dir: Path, tabs: list[tuple[str, str]]) -> str:
         nav="\n".join(nav_items),
         panes="\n".join(panes),
     )
+
+
+def main(argv: list[str] | None = None) -> int:
+    from tools.tabs import TABS
+    argv = sys.argv[1:] if argv is None else argv
+    if not argv:
+        sys.stderr.write("usage: html_report <date> [analysis_dir]\n")
+        return 2
+    date = argv[0]
+    analysis_dir = Path(argv[1] if len(argv) > 1 else os.environ.get("ANALYSIS_DIR", "."))
+    run_dir = analysis_dir / date
+    if not run_dir.is_dir():
+        sys.stderr.write(f"ERROR: no run directory {run_dir}\n")
+        return 1
+    out = run_dir / "report.html"
+    out.write_text(build_report(run_dir, TABS), encoding="utf-8")
+    sys.stdout.write(f"wrote {out}\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
