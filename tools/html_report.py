@@ -19,8 +19,14 @@ _MERMAID_RE = re.compile(
 
 
 def render_tab(md_text: str) -> str:
-    """Strip frontmatter + guidance comments, render Markdown to HTML, and turn
-    fenced ```mermaid blocks into <pre class="mermaid"> with un-escaped source."""
+    """Strip frontmatter + guidance comments, render Markdown to HTML, and move
+    fenced ```mermaid blocks into <pre class="mermaid">.
+
+    The diagram source is kept HTML-ESCAPED (as Markdown emits it): mermaid reads
+    the element's .textContent, which the browser decodes back to the literal
+    characters (`<br/>`, `-->`, `"`). If we un-escaped it here, tags like <br/>
+    in labels would be parsed by the browser as real DOM elements before mermaid
+    ran, corrupting the diagram — so we deliberately do NOT unescape."""
     if _markdown is None:
         raise RuntimeError(
             "the 'markdown' library is required — pip install markdown "
@@ -30,7 +36,7 @@ def render_tab(md_text: str) -> str:
     body = _markdown.markdown(text, extensions=["tables", "fenced_code"])
 
     def _unmermaid(m: "re.Match[str]") -> str:
-        return f'<pre class="mermaid">{_html.unescape(m.group(1))}</pre>'
+        return f'<pre class="mermaid">{m.group(1)}</pre>'
 
     return _MERMAID_RE.sub(_unmermaid, body)
 

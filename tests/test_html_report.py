@@ -25,11 +25,16 @@ def test_render_fenced_code():
     assert "<pre>" in out and "x = 1" in out
 
 
-def test_render_mermaid_unescaped():
-    out = render_tab("```mermaid\ngraph TD\n  A --> B\n```\n")
+def test_render_mermaid_stays_escaped_for_browser():
+    # Mermaid content must stay HTML-ESCAPED inside <pre class="mermaid">: the
+    # browser must NOT parse tags like <br/> in the diagram (it would consume
+    # them before mermaid reads .textContent). textContent decodes the entities
+    # back to the literal chars mermaid needs (`<br/>`, `-->`).
+    out = render_tab('```mermaid\ngraph TD\n  A["x<br/>y"] --> B\n```\n')
     assert 'class="mermaid"' in out
-    assert "A --> B" in out          # un-escaped for mermaid.js
-    assert "--&gt;" not in out
+    assert "&lt;br/&gt;" in out       # kept escaped — browser won't parse it as a tag
+    assert "<br/>" not in out         # no literal tag leaks into the <pre>
+    assert "--&gt;" in out            # arrow kept escaped (textContent decodes to -->)
 
 
 def test_strips_frontmatter_and_comments():

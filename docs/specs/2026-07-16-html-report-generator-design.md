@@ -76,8 +76,12 @@ Per tab, in `render_tab`:
 3. **Render** with `markdown.markdown(text, extensions=["tables", "fenced_code"])`.
 4. **Mermaid post-process** — Python-Markdown renders a ```` ```mermaid ```` block
    as `<pre><code class="language-mermaid">ESCAPED_DIAGRAM</code></pre>`. Rewrite
-   each to `<pre class="mermaid">UNESCAPED_DIAGRAM</pre>` (HTML-unescape `&lt; &gt;
-   &amp;`) so mermaid.js renders it. This is the only tab feature needing special
+   each to `<pre class="mermaid">ESCAPED_DIAGRAM</pre>`, keeping the content
+   **HTML-escaped**. mermaid.js reads the element's `.textContent`, which the
+   browser decodes back to the literal diagram source (`<br/>`, `-->`, `"`). Do
+   NOT HTML-unescape here: un-escaping would put literal `<br/>` (and other tags)
+   into the `<pre>`, which the browser parses as real DOM elements before mermaid
+   runs, corrupting the diagram. This is the only tab feature needing special
    handling.
 
 ## 6. Layout & Self-Containment
