@@ -1,0 +1,576 @@
+{
+  "generated_at": "2026-07-16",
+  "kube_agents_ref": "ba98365cbd3b52d6aaa382e345e310ad79d8c6bf",
+  "install_namespace": "kubeagents-system",
+  "agents": ["platform"],
+  "findings": [
+    {
+      "id": "ARCH-001",
+      "tab": "architectural_summary",
+      "statement": "Single-agent model: only the Platform agent exists in agents/; operator and devteam agents removed per #256. All operational scope (GKE management, security, observability, cost, multi-tenancy) consolidated into one agent.",
+      "severity": "Info",
+      "evidence": "agents/ directory listing",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "ARCH-002",
+      "tab": "architectural_summary",
+      "statement": "Platform agent config defines 2 MCP servers (platform_control for GKE/chat/API, gke for container.googleapis.com/mcp), 2 toolset profiles (cli, api_server), 4 plugins (hermes_otel, session_store, session_otel_bridge, tool_call_audit), and memory disabled by default.",
+      "severity": "Info",
+      "evidence": "agents/platform/config.yaml:1-50",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "ARCH-003",
+      "tab": "architectural_summary",
+      "statement": "The PlatformAgent CRD (kubeagents.x-k8s.io/v1alpha1, Namespaced) allows users to specify arbitrary initContainers, sidecars, extra volumes, env vars, and RuntimeClassName with no security validation at the webhook — only cardinality is enforced.",
+      "severity": "High",
+      "evidence": "k8s-operator/api/v1alpha1/common_types.go:89-156; k8s-operator/api/v1alpha1/common_types.go:160-168",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "ARCH-004",
+      "tab": "architectural_summary",
+      "statement": "Controller reconciliation creates per-agent ServiceAccount, ClusterRoleBinding (view + explorer), PVCs (10Gi data + 1Gi system), ConfigMaps, Deployment, and Service — then cleans up both ClusterRoleBindings and the explorer ClusterRole on deletion.",
+      "severity": "Info",
+      "evidence": "k8s-operator/internal/controller/platformagent_controller.go:72-179",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "ARCH-005",
+      "tab": "architectural_summary",
+      "statement": "Operator ClusterRole grants bind verb on clusterroles and clusterrolebindings, enabling cluster-wide privilege escalation if the operator is compromised.",
+      "severity": "Critical",
+      "evidence": "k8s-operator/config/rbac/role.yaml:88-100; k8s-operator/internal/controller/platformagent_controller.go:59",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "THREAT-001",
+      "tab": "threat_model",
+      "statement": "Primary threat: indirect prompt injection via K8s API — pod logs/stdout, labels, annotations, CRD specs, and events flow unsanitized into the LLM context through MCP tools like get_cc_pod_diagnostics().",
+      "severity": "Critical",
+      "evidence": "agents/platform/scripts/platform_mcp_server.py:325-376",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "THREAT-002",
+      "tab": "threat_model",
+      "statement": "Secondary injection surface: GitHub issues/comments polled every minute and fed raw into the LLM context with no sanitization — any external actor can inject prompt text via public GitHub issues.",
+      "severity": "Critical",
+      "evidence": "agents/platform/skills/github-issue-resolver/scripts/resolver.py:183-232; agents/platform/cron/jobs.json:112-125",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "THREAT-003",
+      "tab": "threat_model",
+      "statement": "Trust propagation is transitive and unauthenticated: call_agent forwards LLM-decided queries to downstream agents with delegation headers (user email, session ID). API_SERVER_KEY falls back to literal 'none' if env var unset, making inter-agent auth trivially forgeable by any pod.",
+      "severity": "Critical",
+      "evidence": "agents/platform/scripts/agent_common_server.py:29,38-108; agents/platform/scripts/session_manager.py:100-115",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "THREAT-004",
+      "tab": "threat_model",
+      "statement": "Privilege escalation via CRD: users with PlatformAgent create/update can specify arbitrary initContainers, sidecars, env vars (including API_SERVER_KEY override), and extra volumes — the webhook validates only cardinality, not security posture.",
+      "severity": "High",
+      "evidence": "k8s-operator/internal/webhook/platformagent_webhook.go:109-175; k8s-operator/api/v1alpha1/common_types.go:89-156",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "THREAT-005",
+      "tab": "threat_model",
+      "statement": "Default agent GCP IAM permission set is gke-admin (container.clusterAdmin + container.admin + monitoring.admin + iam.serviceAccountUser), contradicting the SOUL.md claim of 'standard GKE Read-Only cluster visibility.'",
+      "severity": "High",
+      "evidence": "k8s-operator/scripts/provision_03_gcp_iam.sh:168-176; agents/platform/SOUL.md:15",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "THREAT-006",
+      "tab": "threat_model",
+      "statement": "Agent has no NetworkPolicy — unrestricted egress allows a compromised agent to exfiltrate data to any external endpoint, communicate with any cluster-internal service, or access cloud metadata endpoints.",
+      "severity": "Critical",
+      "evidence": "k8s-operator/internal/controller/platformagent_manifests.go (no NetworkPolicy generation); deploy/ (no NetworkPolicy for agent)",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "LP-001",
+      "tab": "least_privilege_inventory",
+      "statement": "Agent ServiceAccount gets cluster-scoped view ClusterRole (read access to most resources including secrets metadata, configmaps, services, endpoints cluster-wide) plus a custom Explorer ClusterRole (get/list on nodes, pods, namespaces, CRDs).",
+      "severity": "High",
+      "evidence": "k8s-operator/internal/controller/platformagent_manifests.go:718-771; k8s-operator/internal/controller/platformagent_controller.go:296-318",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "LP-002",
+      "tab": "least_privilege_inventory",
+      "statement": "Static agent_rbac overlay grants agent CRUD on KCC containerclusters (GKE cluster create/delete), full read on apps/*, batch/*, networking.k8s.io/*, and full CRUD on kubeagents.x-k8s.io/* resources — self-modifying CRD capability.",
+      "severity": "High",
+      "evidence": "k8s-operator/config/agent_rbac/platformagent.yaml:14-39",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "LP-003",
+      "tab": "least_privilege_inventory",
+      "statement": "Default Platform Agent GCP IAM permission set is gke-admin: roles/container.clusterAdmin, roles/container.admin, roles/monitoring.admin, roles/iam.serviceAccountUser, roles/iam.securityReviewer, roles/mcp.toolUser. A read-only option exists but is not the default.",
+      "severity": "High",
+      "evidence": "k8s-operator/scripts/provision_03_gcp_iam.sh:157-194; k8s-operator/scripts/common.sh:163",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "LP-004",
+      "tab": "least_privilege_inventory",
+      "statement": "Operator ClusterRole includes bind verb on clusterroles and clusterrolebindings — the operator can grant any ClusterRole to any subject, enabling cluster-admin escalation if compromised.",
+      "severity": "Critical",
+      "evidence": "k8s-operator/config/rbac/role.yaml:88-100",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "LP-005",
+      "tab": "least_privilege_inventory",
+      "statement": "GitHub Token Minter GSA is well-scoped: only roles/cloudkms.signerVerifier on the specific KMS key — no project-level IAM roles.",
+      "severity": "Info",
+      "evidence": "k8s-operator/scripts/provision_09_deploy_github_minter.sh:102-112",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "LP-006",
+      "tab": "least_privilege_inventory",
+      "statement": "GChat PubSub permissions are appropriately scoped: roles/pubsub.subscriber + roles/pubsub.viewer on a single subscription.",
+      "severity": "Info",
+      "evidence": "k8s-operator/scripts/provision_04_gcp_gchat.sh:140-153",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SEC-001",
+      "tab": "secrets_token_brokering",
+      "statement": "API keys (GEMINI, OPENAI, ANTHROPIC) and Slack tokens stored in Kubernetes Secret platform-agent-secrets with no encryption at rest beyond K8s etcd encryption. Unused provider keys saved as literal 'placeholder' string.",
+      "severity": "High",
+      "evidence": "k8s-operator/scripts/provision_06_gcp_k8s_secrets.sh:39-84,118-135",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SEC-002",
+      "tab": "secrets_token_brokering",
+      "statement": "All API keys and tokens persisted in plaintext vars.sh file on the provisioning machine. File is not tracked in git but has no .gitignore entry and persists on disk after provisioning.",
+      "severity": "High",
+      "evidence": "k8s-operator/scripts/common.sh:98-110; k8s-operator/scripts/provision_06_gcp_k8s_secrets.sh:39-89",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SEC-003",
+      "tab": "secrets_token_brokering",
+      "statement": "GitHub token brokering via Minty + KMS + OIDC is well-designed: OIDC identity verification, KMS-backed JWT signing, repository-scoped tokens (contents:write, pull_requests:write), restrictive NetworkPolicy on the Minty deployment.",
+      "severity": "Info",
+      "evidence": "k8s-operator/config/integrations/github/deployment.yaml.template; k8s-operator/config/integrations/github/configmap.yaml.template",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SEC-004",
+      "tab": "secrets_token_brokering",
+      "statement": "OIDC token refresh has an insecure fallback: first attempts audience-scoped token, but on failure falls back to gcloud auth print-identity-token without --audiences flag, removing audience restriction.",
+      "severity": "Medium",
+      "evidence": "agents/platform/scripts/github_token_refresh.py:53-68",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SEC-005",
+      "tab": "secrets_token_brokering",
+      "statement": "GitHub App private key PEM materialized to CI runner disk (/tmp/) before KMS import during staging redeploy. Ephemeral runner cleanup mitigates but doesn't eliminate the window.",
+      "severity": "Medium",
+      "evidence": ".github/workflows/staging-redeploy-integrations.yml:248-258",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SEC-006",
+      "tab": "secrets_token_brokering",
+      "statement": "API_SERVER_KEY auto-generated via openssl rand -hex 16 (128-bit) if not provided — cryptographically sound but stored alongside other secrets in vars.sh and K8s Secret.",
+      "severity": "Info",
+      "evidence": "k8s-operator/scripts/provision_06_gcp_k8s_secrets.sh:86-89",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PI-001",
+      "tab": "agentic_prompt_injection",
+      "statement": "Pod logs and container stdout flow unsanitized into LLM context via get_cc_pod_diagnostics() MCP tool — any pod in krmapihosting-system writing attacker-controlled data to stdout injects directly into the agent's reasoning context.",
+      "severity": "Critical",
+      "evidence": "agents/platform/scripts/platform_mcp_server.py:325-376",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PI-002",
+      "tab": "agentic_prompt_injection",
+      "statement": "GitHub issue bodies and comments fed raw into LLM context every minute via github-issue-resolver cron job — any external actor can inject prompt text through public GitHub issues with zero sanitization.",
+      "severity": "Critical",
+      "evidence": "agents/platform/skills/github-issue-resolver/scripts/resolver.py:183-232; agents/platform/cron/jobs.json:112-125",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PI-003",
+      "tab": "agentic_prompt_injection",
+      "statement": "CRD spec fields (env vars, initContainers, sidecars, extraVolumes, GitRepo URL) flow into agent environment and config without validation — users with CRD write access can inject arbitrary environment variables including API_SERVER_KEY override.",
+      "severity": "High",
+      "evidence": "k8s-operator/internal/controller/platformagent_manifests.go:84-212,472-474; k8s-operator/api/v1alpha1/common_types.go:89-156",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PI-004",
+      "tab": "agentic_prompt_injection",
+      "statement": "SETTINGS.md generated from CRD spec GitRepo field and mounted into agent filesystem — agent reads this on startup per SOUL.md. Attacker with CRD write can redirect agent to clone/execute from a malicious Git repository.",
+      "severity": "High",
+      "evidence": "k8s-operator/internal/controller/platformagent_manifests.go:59-81; agents/platform/SOUL.md:12",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PI-005",
+      "tab": "agentic_prompt_injection",
+      "statement": "Cloud Audit Logs returned to LLM via audit_log_searcher() MCP tool with only metadata fields stripped — log message content unsanitized. Attacker-controlled resource names in audit log entries can inject into LLM context.",
+      "severity": "Medium",
+      "evidence": "agents/platform/scripts/platform_mcp_server.py:413-456",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PI-006",
+      "tab": "agentic_prompt_injection",
+      "statement": "Multi-user memory plugin persists LLM-written content across sessions without content validation — prompt injection can write persistent malicious content to MEMORY.md or USER.md that gets re-injected into system prompts on future turns.",
+      "severity": "Medium",
+      "evidence": "agents/platform/plugins/memory/multiuser_memory/__init__.py:15-159",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PI-007",
+      "tab": "agentic_prompt_injection",
+      "statement": "Defense mechanisms are purely observational: tool_call_audit and chat_message_audit plugins log events but do not block, filter, or rate-limit any tool calls or messages.",
+      "severity": "Medium",
+      "evidence": "agents/platform/defaults/plugins/tool_call_audit/audit.py; agents/platform/defaults/hooks/chat_message_audit/handler.py",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "MCP-001",
+      "tab": "agentic_tools_mcp_trust",
+      "statement": "API_SERVER_KEY falls back to literal string 'none' when env var is unset or empty — any pod in the cluster can forge Bearer none header and impersonate the agent-to-agent call channel on the ClusterIP service.",
+      "severity": "Critical",
+      "evidence": "agents/platform/scripts/agent_common_server.py:29",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "MCP-002",
+      "tab": "agentic_tools_mcp_trust",
+      "statement": "call_agent() MCP tool lets LLM specify target_agent_id and query — delegation headers (user email, session ID, chat ID) propagate identity to downstream agents, creating transitive trust: compromising one agent compromises all reachable agents.",
+      "severity": "High",
+      "evidence": "agents/platform/scripts/agent_common_server.py:38-108; agents/platform/scripts/session_manager.py:100-115",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "MCP-003",
+      "tab": "agentic_tools_mcp_trust",
+      "statement": "MCP server (platform_control) runs as agent subprocess with full KUBERNETES_SERVICE_HOST, API_SERVER_KEY, and HERMES_HOME env vars — tools include kubectl against any cluster, gcloud commands, manifest apply, and notification sending.",
+      "severity": "High",
+      "evidence": "agents/platform/config.yaml:2-21; agents/platform/scripts/platform_mcp_server.py",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "MCP-004",
+      "tab": "agentic_tools_mcp_trust",
+      "statement": "Single static shared secret (API_SERVER_KEY) for all inter-agent auth — no per-agent key, no rotation mechanism, no key scoping, no audit of which agent used the key.",
+      "severity": "High",
+      "evidence": "agents/platform/scripts/agent_common_server.py:27-35; k8s-operator/internal/controller/platformagent_manifests.go:153,388-395",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "MCP-005",
+      "tab": "agentic_tools_mcp_trust",
+      "statement": "Agent API server listens on 0.0.0.0:8642 with no NetworkPolicy restricting ingress — any pod in the cluster can reach the agent's chat/completions endpoint.",
+      "severity": "Medium",
+      "evidence": "k8s-operator/internal/controller/platformagent_manifests.go:357-363,860-861",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "MCP-006",
+      "tab": "agentic_tools_mcp_trust",
+      "statement": "apply_manifest() and delete_cluster_manifest() helper functions exist in the MCP server (currently undecorated, not surfaced as tools) but represent latent capability for fully autonomous cluster mutation if exposed.",
+      "severity": "Medium",
+      "evidence": "agents/platform/scripts/platform_mcp_server.py:166-179",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "MCP-007",
+      "tab": "agentic_tools_mcp_trust",
+      "statement": "gke MCP server connects to container.googleapis.com/mcp (Google's GKE API surface) — the agent has programmatic access to the full GKE Hub API through its Workload Identity.",
+      "severity": "Medium",
+      "evidence": "k8s-operator/internal/controller/platformagent_manifests.go:164-167",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SKILL-001",
+      "tab": "agentic_skills_autonomy",
+      "statement": "10 cron jobs run with auto-approval (cron_mode: approve) — no human gate for cron-triggered tool calls. Includes security-patch-orchestrator, blueprint-sync, and github-issue-resolver (every minute).",
+      "severity": "High",
+      "evidence": "agents/platform/cron/jobs.json:1-125; deploy/shared/defaults/config.yaml:44",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SKILL-002",
+      "tab": "agentic_skills_autonomy",
+      "statement": "github-issue-resolver runs every minute, polls unaddressed GitHub issues, sorts by lowest number, and autonomously claims, investigates, resolves, closes, and comments — no prioritization or risk assessment before claiming.",
+      "severity": "High",
+      "evidence": "agents/platform/skills/github-issue-resolver/scripts/resolver.py:175-232; agents/platform/cron/jobs.json:112-125",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SKILL-003",
+      "tab": "agentic_skills_autonomy",
+      "statement": "No skill provenance verification — skills loaded from local filesystem at /opt/hermes/skills/ (copied at Docker build time). No integrity checking, upstream sync mechanism, or signature verification on skill content.",
+      "severity": "Medium",
+      "evidence": "agents/platform/skills/ (20+ SKILL.md files); deploy/docker/Dockerfile",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SKILL-004",
+      "tab": "agentic_skills_autonomy",
+      "statement": "Agent has unrestricted shell access via hermes-cli toolset — can execute arbitrary kubectl, gcloud, and gh commands against any GKE cluster its Workload Identity permits.",
+      "severity": "High",
+      "evidence": "agents/platform/config.yaml:25-37; agents/platform/scripts/platform_mcp_server.py:226-261",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SKILL-005",
+      "tab": "agentic_skills_autonomy",
+      "statement": "SOUL.md autonomy rule: 'If the expected user response to a clarification or permission query would simply be yes, do not ask the question; proceed autonomously.' Distinction between destructive (gated) and non-destructive (autonomous) is self-judged by the agent.",
+      "severity": "Medium",
+      "evidence": "agents/platform/SOUL.md:17",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SKILL-006",
+      "tab": "agentic_skills_autonomy",
+      "statement": "submit-suggestion script uses git push -f (force push) to push branches — protects main/master/production but force-pushes to all other branches, potentially overwriting reviewer commits.",
+      "severity": "Medium",
+      "evidence": "agents/platform/skills/submit-suggestion/scripts/submit_suggestion.py:18-26",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "SKILL-007",
+      "tab": "agentic_skills_autonomy",
+      "statement": "Agent has 'Loop-Until-Done' autonomy: continues through blockers up to 5 iterations or 10 minutes per distinct blocker without human intervention.",
+      "severity": "Medium",
+      "evidence": "agents/platform/SOUL.md:16",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "ADM-001",
+      "tab": "admission_webhooks",
+      "statement": "Validating webhook enforces cluster-level cardinality (only one PlatformAgent per cluster) and GCS-based global project lock — but validates NO security properties of the CR spec (initContainers, sidecars, RuntimeClassName, env vars, ServiceAccountName).",
+      "severity": "High",
+      "evidence": "k8s-operator/internal/webhook/platformagent_webhook.go:109-175",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "ADM-002",
+      "tab": "admission_webhooks",
+      "statement": "GCS global cardinality lock uses bucket {projectID}-kube-agents-lock with object platform-agent-lock.json — well-tested but lock is never created or released by the webhook (read-only check). Stale lock could permanently block new deployments.",
+      "severity": "Medium",
+      "evidence": "k8s-operator/internal/webhook/platformagent_webhook.go:137-172,206-243",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "ADM-003",
+      "tab": "admission_webhooks",
+      "statement": "ValidateDelete is a TODO stub — no deletion validation performed. Any user with delete permission on PlatformAgent CRs can delete the agent without additional guard.",
+      "severity": "Medium",
+      "evidence": "k8s-operator/internal/webhook/platformagent_webhook.go:177-187",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "ADM-004",
+      "tab": "admission_webhooks",
+      "statement": "Mutating webhook Default() is a TODO stub — no defaulting logic applied. CRD schema-level defaults (ImagePullPolicy, DashboardEnabled) are the only defaults in effect.",
+      "severity": "Low",
+      "evidence": "k8s-operator/internal/webhook/platformagent_webhook.go:65-75",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "ADM-005",
+      "tab": "admission_webhooks",
+      "statement": "Webhook failurePolicy is Fail for both mutating and validating webhooks on CREATE and UPDATE — webhook outage blocks all PlatformAgent operations (availability vs. security trade-off).",
+      "severity": "Info",
+      "evidence": "k8s-operator/config/webhook/manifests.yaml:1-53",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "RUNTIME-001",
+      "tab": "runtime_hardening_network",
+      "statement": "No NetworkPolicy generated for the platform agent pod — unrestricted egress and ingress. The agent (most privileged workload: GKE cluster-admin, GCP IAM broad permissions, GitHub token access) has no network restrictions.",
+      "severity": "Critical",
+      "evidence": "k8s-operator/internal/controller/platformagent_manifests.go (no NetworkPolicy generation); deploy/ (no agent NetworkPolicy)",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "RUNTIME-002",
+      "tab": "runtime_hardening_network",
+      "statement": "gVisor is optional and off by default (ENABLE_GVISOR defaults to false). If RuntimeClassName not specified in CR, agent pod runs on default node pool with no kernel-level sandbox isolation.",
+      "severity": "High",
+      "evidence": "k8s-operator/scripts/provision_01a_gvisor_nodepool.sh:29; k8s-operator/api/v1alpha1/common_types.go:109-112",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "RUNTIME-003",
+      "tab": "runtime_hardening_network",
+      "statement": "Pod SecurityContext is well-configured: RunAsNonRoot=true, RunAsUser=10000, FSGroup=10000, SeccompProfile=RuntimeDefault. Container drops ALL capabilities and disallows privilege escalation.",
+      "severity": "Info",
+      "evidence": "k8s-operator/internal/controller/platformagent_manifests.go:531-537,598-603",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "RUNTIME-004",
+      "tab": "runtime_hardening_network",
+      "statement": "Operator pod has strong security defaults: runAsNonRoot, readOnlyRootFilesystem=true, allowPrivilegeEscalation=false, all capabilities dropped, seccomp RuntimeDefault.",
+      "severity": "Info",
+      "evidence": "k8s-operator/config/manager/manager.yaml:33-61",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "RUNTIME-005",
+      "tab": "runtime_hardening_network",
+      "statement": "LiteLLM gateway and GitHub Token Minter (Minty) have well-defined NetworkPolicies with restrictive egress rules — positive controls, but inconsistent that the higher-privilege agent pod has no equivalent policy.",
+      "severity": "Info",
+      "evidence": "k8s-operator/config/integrations/litellm/base/networkpolicy.yaml; k8s-operator/config/integrations/github/deployment.yaml.template:101-151",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "RUNTIME-006",
+      "tab": "runtime_hardening_network",
+      "statement": "Full google-cloud-cli and kubectl installed in agent Docker image — agent can run arbitrary gcloud commands using its GCP service account identity. Combined with no NetworkPolicy, this means unrestricted GCP API access.",
+      "severity": "Medium",
+      "evidence": "deploy/docker/Dockerfile:24-30",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "RUNTIME-007",
+      "tab": "runtime_hardening_network",
+      "statement": "Container does not set ReadOnlyRootFilesystem=true — while the agent needs /opt/data writable, the OS root partition could be mounted read-only as defense-in-depth.",
+      "severity": "Low",
+      "evidence": "k8s-operator/internal/controller/platformagent_manifests.go:598-603",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PIPE-001",
+      "tab": "pipeline_cicd_supply_chain",
+      "statement": "No security scanning in CI pipeline — no zizmor, trivy, grype, snyk, checkov, kubescape, gosec, or semgrep in any of the 14 GitHub Actions workflows. Only actionlint (syntax) and prettier (formatting) quality checks.",
+      "severity": "High",
+      "evidence": ".github/workflows/actionlint.yml; .github/workflows/validate.yml; .github/workflows/k8s-operator-test.yml",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PIPE-002",
+      "tab": "pipeline_cicd_supply_chain",
+      "statement": "GitHub Actions pinned to major/minor version tags (@v7, @v3, @v6), not immutable commit SHAs — malicious tag update would automatically flow into next CI run. Exception: cosign-installer pinned to @v4.1.2.",
+      "severity": "Medium",
+      "evidence": ".github/workflows/docker-publish-gcp.yml:18,25; .github/workflows/auto_request_review.yml:17",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PIPE-003",
+      "tab": "pipeline_cicd_supply_chain",
+      "statement": "Dependabot configured for github-actions and Docker ecosystems only — Python (pip), Node.js (npm), and Go (gomod) dependencies not tracked for automated updates despite Dockerfile including pip install and npm install steps.",
+      "severity": "Medium",
+      "evidence": ".github/dependabot.yml:1-45; deploy/docker/Dockerfile:47-55,63-70",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PIPE-004",
+      "tab": "pipeline_cicd_supply_chain",
+      "statement": "submit-suggestion GitOps flow: agent creates git branch, commits changes, and opens PR via gh CLI. Protected-branch guard prevents force-push to main/master/production but other branches can be force-pushed.",
+      "severity": "Medium",
+      "evidence": "agents/platform/skills/submit-suggestion/scripts/submit_suggestion.py:18-26",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PIPE-005",
+      "tab": "pipeline_cicd_supply_chain",
+      "statement": "GITHUB_OUTPUT injection risk in staging-redeploy-integrations workflow — github.event.inputs values written unsanitized to $GITHUB_OUTPUT. Requires workflow_dispatch access (trusted user gate).",
+      "severity": "Low",
+      "evidence": ".github/workflows/staging-redeploy-integrations.yml:55-61",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PIPE-006",
+      "tab": "pipeline_cicd_supply_chain",
+      "statement": "pull_request_target trigger in auto_request_review workflow with pull-requests:write permission — classical dangerous trigger pattern, though the specific action used is generally considered safe.",
+      "severity": "Low",
+      "evidence": ".github/workflows/auto_request_review.yml:3-8",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "PIPE-007",
+      "tab": "pipeline_cicd_supply_chain",
+      "statement": "No auto-merge or merge_queue configuration — humans must manually merge PRs. This is a positive control for the GitOps workflow.",
+      "severity": "Info",
+      "evidence": "grep for auto_merge/merge_group across repo returned zero hits",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "DATA-001",
+      "tab": "data_audit_detection",
+      "statement": "Tool-call audit plugin logs every tool call's arguments and results to stdout as structured JSON with no redaction of secrets, API keys, or PII — 2000-char truncation is a length limit, not a content filter. Data persisted in Cloud Logging with project-wide access.",
+      "severity": "High",
+      "evidence": "agents/platform/defaults/plugins/tool_call_audit/audit.py:7,29-41",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "DATA-002",
+      "tab": "data_audit_detection",
+      "statement": "Session KV HTTP server (session_kv_server.py) exposes GET /v1/sessions and /v1/sessions/{id}/metadata with no authentication — any process in the cluster network can enumerate all sessions and extract user emails.",
+      "severity": "High",
+      "evidence": "agents/platform/scripts/session_kv_server.py:40-90",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "DATA-003",
+      "tab": "data_audit_detection",
+      "statement": "User emails stored in clear text in SQLite database (/var/lib/kube-agents/session/session_kv.db) on a PersistentVolumeClaim with 7-day retention. Accessible to any process in the pod.",
+      "severity": "Medium",
+      "evidence": "agents/platform/defaults/plugins/session_store/store.py:12,25-34,70",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "DATA-004",
+      "tab": "data_audit_detection",
+      "statement": "OpenTelemetry bridge sends user email as span attribute (hermes.sender.id, user.id) to Google Cloud Trace — anyone with Trace access can correlate spans to specific users.",
+      "severity": "Medium",
+      "evidence": "agents/platform/defaults/plugins/session_otel_bridge/bridge.py:86-93",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "DATA-005",
+      "tab": "data_audit_detection",
+      "statement": "Chat message audit hook logs full user messages and agent responses (truncated at 4000 chars) to stdout — may contain business-sensitive or PII data without explicit redaction.",
+      "severity": "Medium",
+      "evidence": "agents/platform/defaults/hooks/chat_message_audit/handler.py:8,17-33",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "DATA-006",
+      "tab": "data_audit_detection",
+      "statement": "Delegation headers (X-Hermes-User-Email, X-Hermes-Sender-Id, X-Hermes-User-Id, X-Hermes-Chat-Id, X-Hermes-Thread-Id) carry identity across services without cryptographic binding — any intermediary can forge or modify identity claims.",
+      "severity": "Medium",
+      "evidence": "agents/platform/scripts/session_manager.py:99-115; docs/gchat-session-metadata-data-flow.md:162-177",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "DATA-007",
+      "tab": "data_audit_detection",
+      "statement": "Fluent Bit parser extracts gchat_user and gchat_session from agent logs into structured Cloud Logging fields — confirms user identifiers are explicitly surfaced in log infrastructure.",
+      "severity": "Low",
+      "evidence": "k8s-operator/internal/testing/testdata/platform/expected/platformagent.yaml:243-246",
+      "tracking": "UNTRACKED"
+    },
+    {
+      "id": "DATA-008",
+      "tab": "data_audit_detection",
+      "statement": "Kubernetes audit policy deliberately excludes Secret bodies from RequestResponse-level logging — positive least-privilege audit control. Agent mutations logged at Metadata level, RBAC mutations at RequestResponse.",
+      "severity": "Info",
+      "evidence": "k8s-operator/config/audit/audit-policy.yaml; docs/designs/audit-logging-user-attribution.md:123",
+      "tracking": "UNTRACKED"
+    }
+  ]
+}
