@@ -7,6 +7,7 @@ import sys
 # (filename, title) in publish order (Tab 0 first).
 TABS: list[tuple[str, str]] = [
     ("whats_changed.md", "What's Changed"),
+    ("findings.md", "Findings"),
     ("architectural_summary.md", "Architectural & Security Summary"),
     ("threat_model.md", "Threat Model"),
     ("least_privilege_inventory.md", "Least-Privilege Inventory"),
