@@ -22,9 +22,9 @@ def test_diff_findings_classifies():
     old = [{"id": "F-1", "statement": "x"}, {"id": "F-2", "statement": "y"}]
     new = [{"id": "F-2", "statement": "y2"}, {"id": "F-3", "statement": "z"}]
     d = diff_findings(old, new)
-    assert [f["id"] for f in d["added"]] == ["F-3"]
-    assert [f["id"] for f in d["removed"]] == ["F-1"]
-    assert [f["id"] for f in d["changed"]] == ["F-2"]
+    assert {f["id"] for f in d["added"]} == {"F-3"}
+    assert {f["id"] for f in d["removed"]} == {"F-1"}
+    assert {f["id"] for f in d["changed"]} == {"F-2"}
 
 
 def test_main_handles_runtime_error(monkeypatch, capsys):

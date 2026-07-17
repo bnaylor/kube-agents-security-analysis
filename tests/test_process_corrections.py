@@ -51,6 +51,7 @@ def test_main_rewrites_inbox_to_unparsed_only(tmp_path):
     assert rc == 1                                   # unparsed content present
     assert (corr / "inbox.md").read_text().strip() == "orphan line"   # preserved, not lost
     assert (tmp_path / "2026-07-16" / "corrections_feedback.md").exists()
+    assert (corr / "ledger.md").exists()   # persistent full rendered view (spec §5.1)
     # ledger got the parsed entry
     from tools.ledger import load_ledger
     assert len(load_ledger(corr / "ledger.jsonl")) == 1

@@ -1,3 +1,6 @@
+import subprocess
+
+from tools import preflight
 from tools.preflight import Check, evaluate_check, run_preflight
 
 
@@ -40,6 +43,17 @@ def test_optional_command_present_but_failing_is_not_fatal(tmp_path):
     chk = Check("command", "false", "opt", optional=True)
     result = run_preflight(tmp_path, [chk])
     assert result.ok is True
+
+
+def test_command_check_timeout_is_skipped(monkeypatch, tmp_path):
+    # A command that stalls (e.g. kubectl with no cluster) must not block:
+    # a timeout is treated as skipped, so an optional check stays non-fatal.
+    def boom(*_a, **_k):
+        raise subprocess.TimeoutExpired(cmd="x", timeout=preflight._COMMAND_TIMEOUT)
+    monkeypatch.setattr(preflight.subprocess, "run", boom)
+    r = evaluate_check(Check("command", "sleep 99", "opt", optional=True), tmp_path)
+    assert r.skipped and not r.passed and "timed out" in r.detail
+    assert run_preflight(tmp_path, [Check("command", "sleep 99", "opt", optional=True)]).ok is True
 
 
 def test_report_md_lists_failures(tmp_path):

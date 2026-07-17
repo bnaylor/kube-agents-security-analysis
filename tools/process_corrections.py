@@ -71,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     date = argv[0]
     analysis_dir = Path(argv[1] if len(argv) > 1 else os.environ.get("ANALYSIS_DIR", "."))
     corr = analysis_dir / "corrections"
+    corr.mkdir(parents=True, exist_ok=True)
     inbox, ledger_path = corr / "inbox.md", corr / "ledger.jsonl"
     inbox_text = inbox.read_text(encoding="utf-8") if inbox.exists() else ""
     result = process(inbox_text, load_ledger(ledger_path), date)
@@ -78,9 +79,11 @@ def main(argv: list[str] | None = None) -> int:
     tab = analysis_dir / date / "corrections_feedback.md"
     tab.parent.mkdir(parents=True, exist_ok=True)
     tab.write_text(result.corrections_md, encoding="utf-8")
+    # Persistent full rendered view of the ledger (spec §5.1), incl. archived.
+    (corr / "ledger.md").write_text(
+        render_markdown(result.ledger, active_only=False), encoding="utf-8")
     # Rewrite inbox to exactly the unparsed lines: parsed entries consumed,
     # nothing lost, nothing re-ingested next run.
-    corr.mkdir(parents=True, exist_ok=True)
     inbox.write_text(("\n".join(result.unparsed) + "\n") if result.unparsed else "", encoding="utf-8")
     if result.unparsed:
         sys.stderr.write("WARNING: unparsed inbox lines preserved (fix & re-run):\n")
