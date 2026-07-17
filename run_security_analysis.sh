@@ -21,7 +21,7 @@ fi
 
 mkdir -p "${ANALYSIS_DIR}/${d}"
 
-PROMPT="Execute the 'generate-security-analysis-report' skill for target date '${d}'. Perform a complete security audit of the repository located at '${KUBE_AGENTS_DIR}', write all 6 markdown report files directly to '${ANALYSIS_DIR}/${d}/', and execute '${ANALYSIS_DIR}/generate.sh ${d}' to build the tabbed Google Doc."
+PROMPT="Execute the 'generate-security-analysis-report' skill for target date '${d}', auditing the repository at '${KUBE_AGENTS_DIR}' and writing outputs to '${ANALYSIS_DIR}/${d}/'. Follow the skill's two-phase flow (pre-flight, inspect to audit_state.json, render the 13 tabs, process corrections, publish); the skill defines the tabs and steps."
 
 if command -v agentapi >/dev/null 2>&1; then
     echo "Launching agent via agentapi..."
