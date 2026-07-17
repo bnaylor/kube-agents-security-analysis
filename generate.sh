@@ -78,19 +78,11 @@ create_tab() {
     fi
 }
 
-create_tab "${url}" "${target_dir}/whats_changed.md" "What's Changed"
-create_tab "${url}" "${target_dir}/architectural_summary.md" "Architectural & Security Summary"
-create_tab "${url}" "${target_dir}/threat_model.md" "Threat Model"
-create_tab "${url}" "${target_dir}/least_privilege_inventory.md" "Least-Privilege Inventory"
-create_tab "${url}" "${target_dir}/secrets_token_brokering.md" "Secrets & Token Brokering"
-create_tab "${url}" "${target_dir}/agentic_prompt_injection.md" "Prompt Injection & Untrusted Input"
-create_tab "${url}" "${target_dir}/agentic_tools_mcp_trust.md" "Tools, MCP & Inter-Agent Trust"
-create_tab "${url}" "${target_dir}/agentic_skills_autonomy.md" "Skills & Autonomy"
-create_tab "${url}" "${target_dir}/admission_webhooks.md" "Admission Control (Webhooks)"
-create_tab "${url}" "${target_dir}/runtime_hardening_network.md" "Runtime Hardening & Network"
-create_tab "${url}" "${target_dir}/pipeline_cicd_supply_chain.md" "GitOps & CI/CD Integrity"
-create_tab "${url}" "${target_dir}/data_audit_detection.md" "Data, Audit & Detection"
-create_tab "${url}" "${target_dir}/corrections_feedback.md" "Corrections & Feedback"
+# Publish the tabs from the canonical manifest (tools/tabs.py) so this list
+# and the HTML generator can never drift.
+while IFS=$'\t' read -r fname title; do
+    create_tab "${url}" "${target_dir}/${fname}" "${title}"
+done < <( cd "${base_dir}" && python3 -m tools.tabs )
 
 echo ""
 echo "================================================================================"
