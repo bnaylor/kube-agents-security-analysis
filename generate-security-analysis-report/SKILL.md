@@ -1,18 +1,18 @@
 ---
 name: generate-security-analysis-report
-description: Runs a repeatable, structured security audit of the kube-agents repository — a mechanical drift pre-flight, then a two-phase inspect→audit_state.json→render pass that produces 13 date-stamped Markdown tabs (6 domains + What's Changed + Corrections), processes reviewer corrections, and compiles a tabbed Google Doc.
+description: Runs a repeatable, structured security audit of the kube-agents repository — a mechanical drift pre-flight, then a two-phase inspect→audit_state.json→render pass that produces 14 date-stamped Markdown tabs (6 domains + What's Changed + Findings + Corrections), processes reviewer corrections, and compiles a tabbed Google Doc.
 ---
 
 # Task
 
 Produce the v2 kube-agents security report for a target date. The report is
-**13 tabs across 6 domains** plus a run-over-run "What's Changed" summary and a
+**14 tabs across 6 domains** plus a run-over-run "What's Changed" summary and a
 cross-run Corrections ledger. Design and rationale live in
 `docs/specs/2026-07-16-audit-framework-design.md` — read it if intent is unclear.
 
 Execution is **two-phase**: inspect the repo once and export a single
 ground-truth `audit_state.json`, then render every tab from that JSON. This keeps
-the 13 tabs mutually consistent and keeps the diffing deterministic.
+the 14 tabs mutually consistent and keeps the diffing deterministic.
 
 Inspection is **hybrid intent + dated path-hints**: each step says *what to find*
 first, then lists today's known paths marked `as of 2026-07-16 — verify`. Re-ground
@@ -118,6 +118,15 @@ Curate the structured delta it emits (dir diff + findings added/removed/changed,
 plus any Step-0 drift) into a human-readable `<date>/whats_changed.md`. First run
 (no prior report): a short "baseline — no prior run" note.
 
+## Step 2c — Findings rollup
+
+```
+cd "${ANALYSIS_DIR}" && python3 -m tools.findings_rollup "<date>" "${ANALYSIS_DIR}"
+```
+Renders the sprint-plannable **Findings** tab (`<date>/findings.md`) directly from
+`audit_state.json` — a summary line, a Critical→Low action-item table (each row
+grabbable by finding `id`), and a separated Informational section.
+
 ---
 
 # Step 3 — Publish
@@ -126,4 +135,4 @@ plus any Step-0 drift) into a human-readable `<date>/whats_changed.md`. First ru
 ${ANALYSIS_DIR}/generate.sh <date>
 ```
 This re-runs the pre-flight + `audit_state.json` validation gates, then compiles
-the 13 tabs into the Google Doc. Report the output URL.
+the 14 tabs into the Google Doc. Report the output URL.
