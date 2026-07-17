@@ -78,6 +78,9 @@ def main(argv: list[str] | None = None) -> int:
     tab = analysis_dir / date / "corrections_feedback.md"
     tab.parent.mkdir(parents=True, exist_ok=True)
     tab.write_text(result.corrections_md, encoding="utf-8")
+    # Persistent full rendered view of the ledger (spec §5.1), incl. archived.
+    (corr / "ledger.md").write_text(
+        render_markdown(result.ledger, active_only=False), encoding="utf-8")
     # Rewrite inbox to exactly the unparsed lines: parsed entries consumed,
     # nothing lost, nothing re-ingested next run.
     corr.mkdir(parents=True, exist_ok=True)

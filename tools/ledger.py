@@ -81,7 +81,7 @@ class InboxEntry:
 def parse_inbox(text: str) -> list[InboxEntry]:
     entries: list[InboxEntry] = []
     cur: dict[str, str] | None = None
-    key: str | None = None
+    key: str = ""
     for raw in text.splitlines():
         m = re.match(r"-\s+author:\s*(.*)$", raw)
         if m:
@@ -131,19 +131,18 @@ def render_markdown(items: list[Correction], active_only: bool = True) -> str:
     denied = [c for c in items if c.status == "denied"]
     archived = [c for c in items if c.status == "retired"]
 
-    out = ["# Corrections & Feedback", ""]
-    out.append("## Active")
-    out.append("")
-    for c in active:
-        out.append(_render_entry(c))
+    out = ["# Corrections & Feedback", "", "## Active", ""]
+    out.extend(_render_entry(c) for c in active)
     if denied:
-        out += ["", "## Documented false-positives", ""]
-        for c in denied:
-            out.append(_render_entry(c))
+        if out[-1] != "":
+            out.append("")
+        out += ["## Documented false-positives", ""]
+        out.extend(_render_entry(c) for c in denied)
     if not active_only and archived:
-        out += ["", "## Retired (archived)", ""]
-        for c in archived:
-            out.append(_render_entry(c))
+        if out[-1] != "":
+            out.append("")
+        out += ["## Retired (archived)", ""]
+        out.extend(_render_entry(c) for c in archived)
     return "\n".join(out) + "\n"
 
 

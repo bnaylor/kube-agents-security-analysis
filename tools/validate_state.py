@@ -23,7 +23,7 @@ FINDING_REQUIRED: dict[str, type] = {
 }
 
 
-def validate_state(data: dict) -> list[str]:
+def validate_state(data: object) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
         return ["top-level audit_state must be an object"]
